@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenStreetMap with Leaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 100vh;
+      display: none; /* Initially hidden */
+    }
+
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 20px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+
+    /* Box to show location details */
+    #location-box {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      width: 250px;
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      z-index: 2000; /* Ensure it's on top of everything */
+    }
+    #location-box h3 {
+      margin: 0;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    #location-box p {
+      margin: 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">Loading map (Made by Fatima)...</div>
+<div id="map"></div>
+
+<!-- Location info box -->
+<div id="location-box">
+  <h3>Location Info</h3>
+  <p id="location-details">Waiting for location...</p>
+</div>
+
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+  // Initialize the map but keep it hidden initially
+  var map = L.map('map');
+
+  // Add OpenStreetMap tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  // Geocode URL to reverse geocode
+  var geocodeUrl = 'https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&addressdetails=1';
+
+  // Define markers for user location and clicked locations
+  var userMarker, clickedMarker;
+
+  // Get the user's geolocation and update the map
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+      // Once the location is retrieved, hide loading screen and show the map
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('map').style.display = 'block';
+
+      // Get user's latitude and longitude
+      var userLat = position.coords.latitude;
+      var userLng = position.coords.longitude;
+
+      // Set map view to the user's location and zoom in a bit
+      map.setView([userLat, userLng], 13);
+
+      // Add a fixed marker for the user's location
+      userMarker = L.marker([userLat, userLng]).addTo(map);
+      userMarker.bindPopup("You are here").openPopup();
+
+      // Reverse geocode the coordinates to get the location info
+      fetch(geocodeUrl.replace('{lat}', userLat).replace('{lon}', userLng))
+        .then(response => response.json())
+        .then(data => {
+          var locationDetails = data.display_name;
+          document.getElementById('location-details').innerText = locationDetails;
+        })
+        .catch(error => {
+          console.error("Error with geocoding:", error);
+          document.getElementById('location-details').innerText = "Unable to fetch location details.";
+        });
+    }, function() {
+      // Handle errors, e.g., user denied location access
+      alert("Unable to retrieve your location.");
+      document.getElementById('loading').style.display = 'none';
+    });
+  } else {
+    alert("Geolocation is not supported by this browser.");
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  // Add click event to update location info based on map click
+  map.on('click', function(e) {
+    var lat = e.latlng.lat;
+    var lon = e.latlng.lng;
+    
+    // Remove the previously clicked marker if it exists
+    if (clickedMarker) {
+      map.removeLayer(clickedMarker);
+    }
+
+    // Add a new marker for the clicked location
+    clickedMarker = L.marker([lat, lon]).addTo(map);
+    clickedMarker.bindPopup("Clicked Location").openPopup();
+    
+    // Reverse geocode the clicked coordinates
+    fetch(geocodeUrl.replace('{lat}', lat).replace('{lon}', lon))
+      .then(response => response.json())
+      .then(data => {
+        var locationDetails = data.display_name;
+        document.getElementById('location-details').innerText = locationDetails;
+      })
+      .catch(error => {
+        console.error("Error with geocoding:", error);
+        document.getElementById('location-details').innerText = "Unable to fetch location details.";
+      });
+  });
+</script>
+
+</body>
+</html>
